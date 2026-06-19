@@ -9,14 +9,37 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
+use App\Models\QueueCall;
+use App\Events\TicketCalled;
+
 class TicketController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return Ticket::with(['patient', 'service', 'cabinet'])
+        $query = Ticket::with(['patient', 'service', 'cabinet'])
             ->where('deleted', 'NON')
-            ->whereDate('date_ticket', now()->toDateString())
-            ->latest()
+            ->whereDate('date_ticket', now()->toDateString());
+
+        // if ($request->filled('statut')) {
+        //     $query->where('statut', $request->statut);
+        // }
+
+        if ($request->filled('statut')) {
+            $statuts = explode(',', $request->statut);
+            $query->whereIn('statut', $statuts);
+        }
+
+        if ($request->filled('service_id')) {
+            $query->where('service_id', $request->service_id);
+        }
+
+        if ($request->filled('cabinet_id')) {
+            $query->where('cabinet_id', $request->cabinet_id);
+        }
+
+        return $query
+            ->orderByDesc('priorite')
+            ->orderBy('created_at')
             ->paginate(20);
     }
 
@@ -79,5 +102,82 @@ class TicketController extends Controller
         return response()->json([
             'message' => 'Ticket annulé avec succès'
         ]);
+    }
+
+
+    public function call(Request $request, Ticket $ticket)
+    {
+        $data = $request->validate([
+            'cabinet_id' => 'required|exists:cabinets,id',
+        ]);
+
+        return DB::transaction(function () use ($ticket, $data) {
+
+            $numeroAppel = QueueCall::where('ticket_id', $ticket->id)->count() + 1;
+
+            $ticket->update([
+                'cabinet_id' => $data['cabinet_id'],
+                'statut' => 'APPELE',
+            ]);
+
+            $queueCall = QueueCall::create([
+                'ticket_id' => $ticket->id,
+                'cabinet_id' => $data['cabinet_id'],
+                'called_by' => Auth::id(),
+                'numero_appel' => $numeroAppel,
+                'called_at' => now(),
+                'message' => "Ticket {$ticket->numero_ticket}, veuillez vous présenter au cabinet.",
+            ]);
+
+            event(new TicketCalled($queueCall));
+
+            return response()->json([
+                'message' => 'Ticket appelé avec succès',
+                'call' => $queueCall->load(['ticket.patient', 'ticket.service', 'cabinet', 'user']),
+            ]);
+        });
+    }
+
+
+
+    public function markStatus(Request $request, Ticket $ticket)
+    {
+        $data = $request->validate([
+            'statut' => 'required|in:EN_ATTENTE,APPELE,EN_CONSULTATION,TERMINE,ABSENT,ANNULE',
+        ]);
+
+        $ticket->update([
+            'statut' => $data['statut'],
+        ]);
+
+        return response()->json([
+            'message' => 'Statut modifié avec succès',
+            'ticket' => $ticket->load(['patient', 'service', 'cabinet']),
+        ]);
+    }
+
+
+    public function recall(Ticket $ticket)
+    {
+        return DB::transaction(function () use ($ticket) {
+
+            $numeroAppel = QueueCall::where('ticket_id', $ticket->id)->count() + 1;
+
+            $queueCall = QueueCall::create([
+                'ticket_id' => $ticket->id,
+                'cabinet_id' => $ticket->cabinet_id,
+                'called_by' => Auth::id(),
+                'numero_appel' => $numeroAppel,
+                'called_at' => now(),
+                'message' => "Rappel. Ticket {$ticket->numero_ticket}, veuillez vous présenter au cabinet.",
+            ]);
+
+            event(new TicketCalled($queueCall));
+
+            return response()->json([
+                'message' => 'Ticket rappelé avec succès',
+                'call' => $queueCall->load(['ticket.patient', 'ticket.service', 'cabinet', 'user']),
+            ]);
+        });
     }
 }
