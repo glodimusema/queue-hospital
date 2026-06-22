@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Ticket;
 use App\Models\Service;
+use App\Models\Cabinet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Models\Patient;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 use App\Models\QueueCall;
 use App\Events\TicketCalled;
@@ -179,5 +182,71 @@ class TicketController extends Controller
                 'call' => $queueCall->load(['ticket.patient', 'ticket.service', 'cabinet', 'user']),
             ]);
         });
+    }
+
+
+    public function kioskStore(Request $request)
+    {
+        $data = $request->validate([
+            'service_id' => 'required|exists:services,id',
+            'priorite' => 'nullable|integer|min:0',
+        ]);
+
+        return DB::transaction(function () use ($data) {
+
+            $service = Service::findOrFail($data['service_id']);
+            $date = now()->toDateString();
+            $codeService = $service->code_service ?: 'TCK';
+
+            $dernierNumero = Ticket::where('service_id', $service->id)
+                ->whereDate('date_ticket', $date)
+                ->lockForUpdate()
+                ->count() + 1;
+
+            $numeroTicket = $codeService . '-' . str_pad($dernierNumero, 3, '0', STR_PAD_LEFT);
+
+            $patient = Patient::create([
+                'nom' => $numeroTicket,
+                'postnom' => null,
+                'prenom' => null,
+                'numero_patient' => 'AUTO-' . now()->format('YmdHis') . '-' . rand(100, 999),
+                'author' => 'Kiosque',
+                'deleted' => 'NON',
+            ]);
+
+            $cabinet = Cabinet::where('service_id', $service->id)
+                ->where('deleted', 'NON')
+                ->where('statut', 'ACTIF')
+                ->first();
+
+            $ticket = Ticket::create([
+                'patient_id' => $patient->id,
+                'service_id' => $service->id,
+                'cabinet_id' => $cabinet?->id,
+                'numero_ticket' => $numeroTicket,
+                'date_ticket' => $date,
+                'statut' => 'EN_ATTENTE',
+                'priorite' => $data['priorite'] ?? 0,
+                'author' => 'Kiosque',
+                'deleted' => 'NON',
+            ]);
+
+            return response()->json([
+                'message' => 'Ticket généré avec succès',
+                'ticket' => $ticket->load(['patient', 'service', 'cabinet']),
+                'print_url' => url("/tickets/{$ticket->id}/pdf"),
+            ], 201);
+        });
+    }
+
+    public function printPdf(Ticket $ticket)
+    {
+        $ticket->load(['patient', 'service', 'cabinet']);
+
+        $pdf = Pdf::loadView('pdf.ticket-a6', [
+            'ticket' => $ticket,
+        ])->setPaper('a6', 'portrait');
+
+        return $pdf->stream('ticket-' . $ticket->numero_ticket . '.pdf');
     }
 }

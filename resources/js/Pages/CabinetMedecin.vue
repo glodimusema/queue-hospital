@@ -80,6 +80,12 @@ onMounted(loadInitialData);
 
 <template>
     <div class="p-8 bg-gray-50 min-h-screen">
+        <a
+            href="/"
+            class="inline-flex items-center text-blue-600 font-medium mb-4"
+        >
+            ← Retour accueil
+        </a>
         <h1 class="text-3xl font-bold mb-6">
             Cabinet médecin — Appel des patients
         </h1>

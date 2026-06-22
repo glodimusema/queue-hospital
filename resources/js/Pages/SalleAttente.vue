@@ -118,6 +118,12 @@ onBeforeUnmount(() => {
         <!-- HEADER -->
         <header class="h-28 px-10 flex items-center justify-between bg-slate-900 border-b border-slate-700">
             <div>
+                <a
+                    href="/"
+                    class="inline-flex items-center text-blue-600 font-medium mb-4"
+                >
+                    ← Retour accueil
+                </a>
                 <h1 class="text-4xl font-black tracking-wide">
                     HÔPITAL CIMAK
                 </h1>

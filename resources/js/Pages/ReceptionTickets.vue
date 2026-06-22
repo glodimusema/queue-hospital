@@ -64,6 +64,12 @@ onMounted(loadData);
 
 <template>
     <div class="p-8">
+        <a
+            href="/"
+            class="inline-flex items-center text-blue-600 font-medium mb-4"
+        >
+            ← Retour accueil
+        </a>
         <h1 class="text-3xl font-bold mb-6">Réception — Création des tickets</h1>
 
         <div v-if="message" class="bg-green-100 text-green-700 p-4 rounded mb-4">

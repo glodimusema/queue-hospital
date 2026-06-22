@@ -18,8 +18,10 @@ Route::get('/user', function (Request $request) {
     Route::post('tickets/{ticket}/call', [TicketController::class, 'call']);
     Route::post('tickets/{ticket}/status', [TicketController::class, 'markStatus']);
     Route::post('tickets/{ticket}/recall', [TicketController::class, 'recall']);
+    Route::post('kiosk/tickets', [TicketController::class, 'kioskStore']);
     Route::apiResource('tickets', TicketController::class);
     Route::apiResource('services', ServiceController::class);
     Route::apiResource('cabinets', CabinetController::class);
     Route::apiResource('patients', PatientController::class);
-// });
+    // Route::get('/tickets/{ticket}/pdf', [TicketController::class, 'printPdf'])
+    // ->name('tickets.pdf');
