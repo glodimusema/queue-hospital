@@ -78,4 +78,35 @@ class CabinetController extends Controller
             'message' => 'Cabinet supprimé avec succès',
         ]);
     }
+
+    public function actifs()
+    {
+        return response()->json([
+            'data' => Cabinet::with('service')
+                ->where('statut', 'ACTIF')
+                ->orderBy('nom_cabinet')
+                ->get()
+        ]);
+    }
+
+    public function updateStatut(Request $request, Cabinet $cabinet)
+    {
+        $data = $request->validate([
+            'statut' => 'required|in:ACTIF,INACTIF',
+        ]);
+
+        $cabinet->update([
+            'statut' => $data['statut'],
+        ]);
+
+        return response()->json([
+            'message' => $data['statut'] === 'ACTIF'
+                ? 'Cabinet activé avec succès'
+                : 'Cabinet désactivé avec succès',
+            'data' => $cabinet,
+        ]);
+    }
+
+
+
 }

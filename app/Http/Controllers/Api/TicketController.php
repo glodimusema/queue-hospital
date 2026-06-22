@@ -188,22 +188,33 @@ class TicketController extends Controller
     public function kioskStore(Request $request)
     {
         $data = $request->validate([
-            'service_id' => 'required|exists:services,id',
+            'cabinet_id' => 'required|exists:cabinets,id',
             'priorite' => 'nullable|integer|min:0',
         ]);
 
         return DB::transaction(function () use ($data) {
 
-            $service = Service::findOrFail($data['service_id']);
+            $cabinet = Cabinet::with('service')
+                ->where('id', $data['cabinet_id'])
+                ->where('deleted', 'NON')
+                ->where('statut', 'ACTIF')
+                ->firstOrFail();
+
+            $service = $cabinet->service;
+
+            if (!$service) {
+                abort(422, 'Ce cabinet n’est lié à aucun service.');
+            }
+
             $date = now()->toDateString();
             $codeService = $service->code_service ?: 'TCK';
 
-            $dernierNumero = Ticket::where('service_id', $service->id)
+            $dernierNumero = Ticket::where('cabinet_id', $cabinet->id)
                 ->whereDate('date_ticket', $date)
                 ->lockForUpdate()
                 ->count() + 1;
 
-            $numeroTicket = $codeService . '-' . str_pad($dernierNumero, 3, '0', STR_PAD_LEFT);
+            $numeroTicket = $codeService . '-' . $cabinet->numero_cabinet . '-' . str_pad($dernierNumero, 3, '0', STR_PAD_LEFT);
 
             $patient = Patient::create([
                 'nom' => $numeroTicket,
@@ -214,15 +225,10 @@ class TicketController extends Controller
                 'deleted' => 'NON',
             ]);
 
-            $cabinet = Cabinet::where('service_id', $service->id)
-                ->where('deleted', 'NON')
-                ->where('statut', 'ACTIF')
-                ->first();
-
             $ticket = Ticket::create([
                 'patient_id' => $patient->id,
                 'service_id' => $service->id,
-                'cabinet_id' => $cabinet?->id,
+                'cabinet_id' => $cabinet->id,
                 'numero_ticket' => $numeroTicket,
                 'date_ticket' => $date,
                 'statut' => 'EN_ATTENTE',

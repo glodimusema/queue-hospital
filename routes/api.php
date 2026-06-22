@@ -22,6 +22,8 @@ Route::get('/user', function (Request $request) {
     Route::apiResource('tickets', TicketController::class);
     Route::apiResource('services', ServiceController::class);
     Route::apiResource('cabinets', CabinetController::class);
+    Route::get('/cabinets-actifs', [CabinetController::class, 'actifs']);
+    Route::patch('/cabinets/{cabinet}/statut', [CabinetController::class, 'updateStatut']);
     Route::apiResource('patients', PatientController::class);
     // Route::get('/tickets/{ticket}/pdf', [TicketController::class, 'printPdf'])
     // ->name('tickets.pdf');

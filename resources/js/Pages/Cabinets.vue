@@ -46,6 +46,23 @@ async function saveCabinet() {
     }
 }
 
+async function toggleStatutCabinet(cabinet) {
+    const nouveauStatut = cabinet.statut === 'ACTIF' ? 'INACTIF' : 'ACTIF';
+
+    try {
+        const res = await axios.patch(`/api/cabinets/${cabinet.id}/statut`, {
+            statut: nouveauStatut,
+        });
+
+        message.value = res.data.message;
+
+        await loadData();
+    } catch (e) {
+        console.error(e);
+        alert('Erreur lors du changement de statut');
+    }
+}
+
 onMounted(loadData);
 </script>
 
@@ -165,6 +182,9 @@ onMounted(loadData);
                         <th class="border p-3 text-left">
                             Statut
                         </th>
+                        <th class="border p-3 text-left">
+                            Action
+                        </th>
                     </tr>
                 </thead>
 
@@ -191,6 +211,17 @@ onMounted(loadData);
 
                         <td class="border p-3">
                             {{ cabinet.statut }}
+                        </td>
+                        <td class="border p-3">
+                            <button
+                                @click="toggleStatutCabinet(cabinet)"
+                                :class="cabinet.statut === 'ACTIF'
+                                    ? 'bg-red-600 hover:bg-red-700'
+                                    : 'bg-green-600 hover:bg-green-700'"
+                                class="text-white px-4 py-2 rounded-lg font-medium"
+                            >
+                                {{ cabinet.statut === 'ACTIF' ? 'Désactiver' : 'Activer' }}
+                            </button>
                         </td>
                     </tr>
                 </tbody>
